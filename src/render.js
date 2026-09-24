@@ -19,9 +19,10 @@ function drawPaddle( ctx ) {
   drawSprite( ctx, 'paddle', p.x, p.y, p.w, p.h );
 }
 
-function drawBall( ctx ) {
-  const b = state.ball;
-  drawSprite( ctx, 'ball', b.x, b.y, b.size, b.size );
+function drawBalls( ctx ) {
+  for ( const b of state.balls ) {
+    drawSprite( ctx, 'ball', b.x, b.y, b.size, b.size );
+  }
 }
 
 function drawHud( ctx ) {
@@ -31,6 +32,9 @@ function drawHud( ctx ) {
 
   ctx.textAlign = 'left';
   ctx.fillText( 'SCORE: ' + state.score, 16, BRICKS_TOP / 2 );
+
+  ctx.textAlign = 'center';
+  ctx.fillText( 'NIVEL ' + state.level, CANVAS_W / 2, BRICKS_TOP / 2 );
 
   ctx.textAlign = 'right';
   ctx.fillText( 'VIDAS: ' + state.lives, CANVAS_W - 16, BRICKS_TOP / 2 );
@@ -69,7 +73,7 @@ function render( ctx ) {
   drawBricks( ctx );
   drawExplosions( ctx );
   drawPaddle( ctx );
-  drawBall( ctx );
+  drawBalls( ctx );
   drawHud( ctx );
   drawStateText( ctx );
 }

@@ -21,7 +21,7 @@ window.addEventListener( 'keydown', ( e ) => {
   if ( e.code === 'Space' ) {
     e.preventDefault();
     if ( state.mode === 'ready' ) {
-      launchBall();
+      launchBalls();
       state.mode = 'playing';
     }
   } else if ( e.code === 'KeyP' || e.code === 'Escape' ) {

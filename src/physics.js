@@ -12,27 +12,39 @@ function updatePaddle( dt ) {
   if ( p.x + p.w > CANVAS_W ) p.x = CANVAS_W - p.w;
 }
 
-function stickBallToPaddle() {
-  const b = state.ball;
+function stickBallToPaddle( b ) {
   const p = state.paddle;
   b.x = p.x + p.w / 2 - b.size / 2;
   b.y = p.y - b.size;
 }
 
-function launchBall() {
-  const b = state.ball;
-  const angle = ( Math.random() * 2 - 1 ) * LAUNCH_ANGLE;
-  b.vx = b.speed * Math.sin( angle );
-  b.vy = -b.speed * Math.cos( angle );
+function launchBallAt( b, angle ) {
+  b.vx = state.ballSpeed * Math.sin( angle );
+  b.vy = -state.ballSpeed * Math.cos( angle );
   b.stuck = false;
+}
+
+function launchBall( b ) {
+  launchBallAt( b, ( Math.random() * 2 - 1 ) * LAUNCH_ANGLE );
+}
+
+// 1 bola: ángulo aleatorio ±15°. Varias: abanico uniforme en ±LAUNCH_SPREAD.
+function launchBalls() {
+  const n = state.balls.length;
+  if ( n === 1 ) {
+    launchBall( state.balls[ 0 ] );
+    return;
+  }
+  state.balls.forEach( ( b, i ) => {
+    launchBallAt( b, -LAUNCH_SPREAD + i * 2 * LAUNCH_SPREAD / ( n - 1 ) );
+  } );
 }
 
 function overlaps( a, bx, by, bw, bh ) {
   return a.x < bx + bw && a.x + a.size > bx && a.y < by + bh && a.y + a.size > by;
 }
 
-function collidePaddle() {
-  const b = state.ball;
+function collidePaddle( b ) {
   const p = state.paddle;
   if ( b.vy <= 0 ) return;
   if ( !overlaps( b, p.x, p.y, p.w, p.h ) ) return;
@@ -42,15 +54,13 @@ function collidePaddle() {
   const rel = Math.max( -1, Math.min( 1, ( ballCenterX - paddleCenterX ) / ( p.w / 2 ) ) );
   const angle = rel * MAX_BOUNCE_ANGLE;
 
-  b.vx = b.speed * Math.sin( angle );
-  b.vy = -b.speed * Math.cos( angle );
+  b.vx = state.ballSpeed * Math.sin( angle );
+  b.vy = -state.ballSpeed * Math.cos( angle );
   b.y = p.y - b.size;
   playBounce();
 }
 
-function collideBricks() {
-  const b = state.ball;
-
+function collideBricks( b ) {
   for ( const br of state.bricks ) {
     if ( !br.alive ) continue;
     if ( !overlaps( b, br.x, br.y, br.w, br.h ) ) continue;
@@ -78,9 +88,7 @@ function collideBricks() {
   }
 }
 
-function updateBall( dt ) {
-  const b = state.ball;
-
+function updateBall( b, dt ) {
   b.x += b.vx * dt;
   b.y += b.vy * dt;
 
@@ -100,24 +108,37 @@ function updateBall( dt ) {
     playBounce();
   }
 
-  collideBricks();
+  collideBricks( b );
   if ( !state.bricks.some( ( br ) => br.alive ) ) {
-    state.mode = 'won';
+    completeLevel();
     return;
   }
 
-  collidePaddle();
+  collidePaddle( b );
 
   if ( b.y > CANVAS_H ) {
+    dropBall( b );
+  }
+}
+
+// Se elimina la bola caída; solo se pierde vida si no queda ninguna en juego.
+function dropBall( b ) {
+  state.balls = state.balls.filter( ( other ) => other !== b );
+  if ( state.balls.length === 0 ) {
     loseLife();
   }
 }
 
+function completeLevel() {
+  if ( state.level < MAX_LEVEL ) {
+    loadLevel( state.level + 1 );
+  } else {
+    state.mode = 'won';
+  }
+}
+
 function loseLife() {
-  const b = state.ball;
-  b.stuck = true;
-  b.vx = 0;
-  b.vy = 0;
+  state.balls = [ createBall() ];
 
   state.lives -= 1;
   if ( state.lives === 0 ) {
@@ -132,7 +153,7 @@ function updateServe( dt ) {
   state.serveTimer -= dt;
   if ( state.serveTimer <= 0 ) {
     state.serveTimer = 0;
-    launchBall();
+    launchBall( state.balls[ 0 ] );
     state.mode = 'playing';
   }
 }
@@ -163,10 +184,13 @@ function update( dt ) {
     updatePaddle( dt );
   }
 
-  if ( state.ball.stuck ) {
-    stickBallToPaddle();
-  } else if ( m === 'playing' ) {
-    updateBall( dt );
+  for ( const b of state.balls ) {
+    if ( b.stuck ) {
+      stickBallToPaddle( b );
+    } else if ( m === 'playing' ) {
+      updateBall( b, dt );
+    }
+    if ( state.mode !== m ) break; // nivel superado o vida perdida: state.balls ya es otro array
   }
 
   if ( m === 'serving' ) {
